@@ -1,0 +1,52 @@
+# Core framework
+langchain
+langchain-core
+langchain-community
+langgraph
+langsmith
+
+# Mistral
+mistralai
+
+# Search tool
+tavily-python
+
+# Web scraping
+beautifulsoup4
+requests
+lxml
+
+# Environment variables
+python-dotenv
+
+# Data validation
+pydantic
+
+# Tokenization
+tiktoken
+
+# Async support
+aiohttp
+httpx
+
+# Retry mechanism
+tenacity
+
+# Logging
+rich
+
+# API backend (optional but recommended)
+fastapi
+uvicorn
+
+# Data handling
+pandas
+
+# Faster JSON parsing
+orjson
+
+# Optional document support
+pypdf
+
+# Optional vector database (future RAG support)
+faiss-cpu
