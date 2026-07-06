@@ -1,5 +1,4 @@
 from langchain.agents import create_agent
-from langchain_mistralai import ChatMistralAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from tools import web_search, scrape_url
@@ -7,24 +6,34 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-# Model setup
-llm = ChatMistralAI(model="mistral-small-latest", temperature=0)
+# Create the LLM lazily to avoid raising on module import if dependencies or keys are missing
+def get_llm():
+    try:
+        from langchain_mistralai import ChatMistralAI
+    except Exception as e:
+        raise ImportError(
+            "ChatMistralAI (langchain_mistralai) is required but not available. "
+            "Install the package and set any required API keys. Original error: " + str(e)
+        )
+    return ChatMistralAI(model="mistral-small-latest", temperature=0)
 
 # 1st agent
 def build_search_agent():
+    llm = get_llm()
     return create_agent(
-        model = llm,
+        model=llm,
         tools=[web_search]
     )
-    
+
 # 2nd agent
 def build_reader_agent():
+    llm = get_llm()
     return create_agent(
-        model = llm,
+        model=llm,
         tools=[scrape_url]
     )
-    
-# Writer Chain
+
+# Writer Prompt
 writer_prompt = ChatPromptTemplate.from_messages([
     ("system", "You are an expert research writer. Write clear, structured and insightful reports."),
     ("human",
@@ -43,16 +52,17 @@ writer_prompt = ChatPromptTemplate.from_messages([
      - Sources (list all URLs found in the research)
      
      Be detailed, factual and professional.
-     """),
+     """)
 ])
 
-writer_chain = writer_prompt | llm | StrOutputParser()
+def get_writer_chain():
+    llm = get_llm()
+    return writer_prompt | llm | StrOutputParser()
 
-# critic_chain
-
+# Critic Prompt
 critic_prompt = ChatPromptTemplate.from_messages([
     ("system", "You are a sharp and constructive research critic. Be honest and specific."),
-    ("human", 
+    ("human",
      """
      Review the research report below and evaluate it strictly.
      
@@ -71,8 +81,9 @@ critic_prompt = ChatPromptTemplate.from_messages([
      - ...
      
      One line verdict:
-     ..."""),
+     ...""")
 ])
 
-critic_chain = critic_prompt | llm | StrOutputParser()
-
+def get_critic_chain():
+    llm = get_llm()
+    return critic_prompt | llm | StrOutputParser()

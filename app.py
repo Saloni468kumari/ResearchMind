@@ -1,7 +1,7 @@
 import streamlit as st
 import time
 
-# ── Page config ────────────────────────────────────────────────────────────────
+# ── Page config ──────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="ResearchMind",
     page_icon="🔬",
@@ -9,7 +9,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Responsive CSS ─────────────────────────────────────────────────────────────
+# ── Responsive CSS ─────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
@@ -214,14 +214,14 @@ hr { border-color: #2E2E2E !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Import pipeline ────────────────────────────────────────────────────────────
+# ── Import pipeline ────────────────────────────────────────────────────────
 try:
     from pipeline import run_research_pipeline
     PIPELINE_AVAILABLE = True
 except ImportError:
     PIPELINE_AVAILABLE = False
 
-# ── Session state ──────────────────────────────────────────────────────────────
+# ── Session state ─────────────────────────────────────────────────────────
 for key, default in {
     "search_results": "",
     "scraped_content": "",
@@ -235,7 +235,7 @@ for key, default in {
     if key not in st.session_state:
         st.session_state[key] = default
 
-# ── Stages ────────────────────────────────────────────────────────────────────
+# ── Stages ───────────────────────────────────────────────────────────
 STAGES = [
     ("search", "🔍", "Search Agent",  "Scanning the web for reliable sources",  "#FF6B00"),
     ("reader", "📄", "Reader Agent",  "Scraping & extracting deep content",      "#FF9500"),
@@ -243,9 +243,11 @@ STAGES = [
     ("critic", "🧐", "Critic Chain",  "Reviewing & providing feedback",          "#FF4500"),
 ]
 
+
 def add_log(msg):
     ts = time.strftime("%H:%M:%S")
     st.session_state.log.append(f"[{ts}] {msg}")
+
 
 def stage_status(stage_id):
     order   = ["search","reader","writer","critic"]
@@ -261,7 +263,24 @@ def stage_status(stage_id):
     if si == ci: return "running"
     return "idle"
 
-# ── SIDEBAR ───────────────────────────────────────────────────────────────────
+# Robust extractor for different possible result shapes returned by agents/chains.
+def _extract_result_text(result):
+    try:
+        if isinstance(result, dict):
+            if "messages" in result:
+                msgs = result.get("messages")
+                if isinstance(msgs, (list, tuple)) and msgs:
+                    last = msgs[-1]
+                    if hasattr(last, "content"):
+                        return last.content
+                    return str(last)
+            if "output" in result:
+                return result.get("output")
+        return str(result)
+    except Exception:
+        return str(result)
+
+# ── SIDEBAR ───────────────────────────────────────────────────────────
 with st.sidebar:
 
     # Logo + name
@@ -347,7 +366,7 @@ with st.sidebar:
     if st.session_state.error_msg:
         st.error(f"✕ {st.session_state.error_msg}")
 
-# ── MAIN AREA ─────────────────────────────────────────────────────────────────
+# ── MAIN AREA ──────────────────────────────────────────────────────────
 
 # Header
 st.markdown("""
@@ -396,7 +415,7 @@ def render_output(content, placeholder, color):
     if content:
         st.markdown(f"""
         <div class="output-box" style='border-left:3px solid {color}'>
-{content}
+ {content}
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -414,7 +433,7 @@ with tab2: render_output(st.session_state.scraped_content, "Awaiting scraped con
 with tab3: render_output(st.session_state.report,          "Awaiting report...",           "#FFB700")
 with tab4: render_output(st.session_state.feedback,        "Awaiting critic feedback...",  "#FF4500")
 
-# ── Pipeline runner ────────────────────────────────────────────────────────────
+# ── Pipeline runner ────────────────────────────────────────────────────────
 if run_clicked:
     if not topic.strip():
         st.warning("Please enter a research topic in the sidebar.")
@@ -437,14 +456,14 @@ if st.session_state.stage in ("search","reader","writer","critic") and PIPELINE_
         st.session_state.stage = "idle"
         st.rerun()
     try:
-        from agents import build_reader_agent, build_search_agent, writer_chain, critic_chain
+        from agents import build_reader_agent, build_search_agent, get_writer_chain, get_critic_chain
 
         if stage == "search":
             with st.spinner("🔍 Search Agent scanning the web..."):
                 agent  = build_search_agent()
                 result = agent.invoke({"messages":[("user",
                     f"Find recent, reliable and detailed information about: {topic_val}")]})
-                st.session_state.search_results = result["messages"][-1].content
+                st.session_state.search_results = _extract_result_text(result)
                 add_log("Search complete ✓")
                 st.session_state.stage = "reader"
                 add_log("Reader agent activated — scraping top resources...")
@@ -456,7 +475,7 @@ if st.session_state.stage in ("search","reader","writer","critic") and PIPELINE_
                     f"Based on the following search results about '{topic_val}', "
                     f"pick the most relevant URL and scrape it for deeper content.\n\n"
                     f"Search Results:\n{st.session_state.search_results[:800]}")]})
-                st.session_state.scraped_content = result["messages"][-1].content
+                st.session_state.scraped_content = _extract_result_text(result)
                 add_log("Scraping complete ✓")
                 st.session_state.stage = "writer"
                 add_log("Writer chain activated — drafting report...")
@@ -465,16 +484,18 @@ if st.session_state.stage in ("search","reader","writer","critic") and PIPELINE_
             with st.spinner("✍️ Writer Chain drafting the report..."):
                 combined = (f"SEARCH RESULTS:\n{st.session_state.search_results}\n\n"
                             f"DETAILED SCRAPED CONTENT:\n{st.session_state.scraped_content}")
-                st.session_state.report = writer_chain.invoke(
-                    {"topic": topic_val, "research": combined})
+                writer_chain = get_writer_chain()
+                writer_result = writer_chain.invoke({"topic": topic_val, "research": combined})
+                st.session_state.report = _extract_result_text(writer_result)
                 add_log("Report drafted ✓")
                 st.session_state.stage = "critic"
                 add_log("Critic chain activated — reviewing report...")
 
         elif stage == "critic":
             with st.spinner("🧐 Critic Chain reviewing the report..."):
-                st.session_state.feedback = critic_chain.invoke(
-                    {"report": st.session_state.report})
+                critic_chain = get_critic_chain()
+                critic_result = critic_chain.invoke({"report": st.session_state.report})
+                st.session_state.feedback = _extract_result_text(critic_result)
                 add_log("Review complete ✓")
                 add_log("🎉 Pipeline completed successfully!")
                 st.session_state.stage = "done"

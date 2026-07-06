@@ -1,14 +1,17 @@
-# Core framework
+# Requirements for ResearchMind
+# Please pin versions after validating which provider packages you use.
+
 langchain
 langchain-core
 langchain-community
 langgraph
 langsmith
 
-# Mistral
+# Mistral integration
 mistralai
+langchain-mistralai
 
-# Search tool
+# Tavily search
 tavily-python
 
 # Web scraping
@@ -50,3 +53,6 @@ pypdf
 
 # Optional vector database (future RAG support)
 faiss-cpu
+
+# UI
+streamlit
