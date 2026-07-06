@@ -1,3 +1,6 @@
+# Web App Framework
+streamlit
+
 # Core framework
 langchain
 langchain-core
@@ -5,8 +8,9 @@ langchain-community
 langgraph
 langsmith
 
-# Mistral
+# Mistral & LangChain Integration
 mistralai
+langchain-mistralai
 
 # Search tool
 tavily-python
